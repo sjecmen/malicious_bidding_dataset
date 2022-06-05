@@ -32,7 +32,7 @@ Outputs:
 '''
 def bid_success(SA, HB, MB, authored_map, authored_map_group, target_map, group_map, num_trials):
     paper_load = 3
-    reviewer_load =3
+    reviewer_load = 3
     full_M = construct_conflicts(authored_map, SA.shape)
     successes_by_rev = np.zeros(SA.shape[0])
     for group_id, group_revs in group_map.items():
@@ -50,7 +50,11 @@ def bid_success(SA, HB, MB, authored_map, authored_map_group, target_map, group_
                 # REVISION: successes divided by numbers of target papers
                 #successes_by_rev[i] += np.sum(A[new_i, target_paps])/len(target_paps)
                 # REVISION: binary success rate
-                successes_by_rev[i] += 1 if np.sum(A[new_i, target_paps]) > 1 else np.sum(A[new_i, target_paps])
+                v = np.sum(A[new_i, target_paps])
+                if v >= 1:
+                    successes_by_rev[i] += 1
+                else:
+                    assert v == 0
     successes_by_rev /= num_trials
     return successes_by_rev
 
@@ -169,7 +173,7 @@ def construct_similarity(SA, HB, MB, M, manipulators):
             B[new_i, :] = HB[old_i, :]
     newSA = SA[new_idxs, :]
     newM = M[new_idxs, :]
-    S = (newSA * 0.5) + B # compute similarities in some way
+    S = newSA + B # compute similarities in some way
     return S, B, newM, idx_map
 
 
@@ -219,7 +223,7 @@ def cluster_detect(B, M, authored_map):
             i_out = bidsums[i] - B[i, pj] # all bids other than pj
             j_out = bidsums[j] - B[j, pi]
             # sort revs first by in-group bids, then by out-group
-            score = B[i, pj] + B[j, pi] - ((i_out + j_out) / (2 * npap))
+            score = max(B[i, pj], 0) + max(B[j, pi], 0) - ((i_out + j_out) / (2 * npap)) # change: max with 0
             scores[i, j] = score
             scores[j, i] = score
     rev_scores = list(np.amax(scores, axis=1))
@@ -272,33 +276,39 @@ def threshold(S, rank):
 
 
 def main():
-    with open('../../parse/Biddings.npy', 'rb') as f:
-        HB = np.load(f)
-        MB = np.load(f)
-        SA = np.load(f)
+    data = np.load('../../parse/analysis/Biddings.npz')
+    HB, MB, SA = data['HB'], data['MB'], data['SA']
+    
+    #with open('../../parse/Biddings.npy', 'rb') as f:
+    #    HB = np.load(f)
+    #    MB = np.load(f)
+    #    SA = np.load(f)
 
-    with open('../../parse/maps.pkl', 'rb') as f:
-        author_map = pickle.load(f)
-        group_map = pickle.load(f)
-        target_map = pickle.load(f)
+    with open('../../parse/analysis/maps.pkl', 'rb') as f:
+        data = pickle.load(f)
+        author_map, group_map, target_map, author_map_group = (
+            data['author_map'], data['group_map'], data['target_map'], data['author_map_group'])
+        #author_map = pickle.load(f)
+        #group_map = pickle.load(f)
+        #target_map = pickle.load(f)
         # REVISION
-        author_map_group = pickle.load(f)
+        #author_map_group = pickle.load(f)
 
     # REVISION: additional parameter, author_map_group
     success_by_reviewer = bid_success(SA, HB, MB, author_map, author_map_group, target_map, group_map, num_trials=10)
     rank_by_reviewer_simple = bid_detect(SA, HB, MB, author_map, group_map, num_trials=10, detection_type='simple', rank=None)
     rank_by_reviewer_cluster = bid_detect(SA, HB, MB, author_map, group_map, num_trials=10, detection_type='cluster', rank=None)
     rank_by_reviewer_row_rank = bid_detect(SA, HB, MB, author_map, group_map, num_trials=10, detection_type='low_rank', rank=3)
-    diff_by_reviewer_hamming = bid_difference(HB, MB, author_map, diff_fn='hamming')
-    diff_by_reviewer_L1 = bid_difference(HB, MB, author_map, diff_fn='L1')
+    #diff_by_reviewer_hamming = bid_difference(HB, MB, author_map, diff_fn='hamming')
+    #diff_by_reviewer_L1 = bid_difference(HB, MB, author_map, diff_fn='L1')
 
-    with open('../../parse/Result.npy', 'wb') as f:
+    with open('../../parse/analysis/Result.npy', 'wb') as f:
         np.save(f, success_by_reviewer)
         np.save(f, rank_by_reviewer_simple)
         np.save(f, rank_by_reviewer_cluster)
         np.save(f, rank_by_reviewer_row_rank)
-        np.save(f, diff_by_reviewer_hamming)
-        np.save(f, diff_by_reviewer_L1)
+        #np.save(f, diff_by_reviewer_hamming)
+        #np.save(f, diff_by_reviewer_L1)
 
 if __name__ == "__main__":
     main()
