@@ -4,11 +4,10 @@ from gurobipy import GRB
 
 rng = np.random.default_rng()
 
-def match(S, M, revloads, paploads):
-    if type(revloads) == int:
-        revloads = np.full(S.shape[0], revloads)
-    if type(paploads) == int:
-        paploads = np.full(S.shape[1], paploads)
+def match(S, M):
+    # loads of 3, 3
+    revloads = np.full(S.shape[0], 3)
+    paploads = np.full(S.shape[1], 3)
 
     model = gp.Model("my_model") 
     model.setParam('OutputFlag', 0)
@@ -49,6 +48,7 @@ def match(S, M, revloads, paploads):
         model.addConstr(reviewers == paploads[j])
     
     model.optimize()
+    #print(model.objVal)
 
     if model.status != GRB.OPTIMAL:
         print("WARNING: model not solved")

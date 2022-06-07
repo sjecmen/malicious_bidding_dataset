@@ -3,6 +3,7 @@ from LP import match
 import random
 import scipy.linalg
 import pickle
+from utils import similarity
 
 '''
 Arguments used for various functions (inputs from the survey):
@@ -31,8 +32,6 @@ Outputs:
         denoting the average number of target papers that each reviewer got assigned to
 '''
 def bid_success(SA, HB, MB, authored_map, authored_map_group, target_map, group_map, num_trials):
-    paper_load = 3
-    reviewer_load = 3
     full_M = construct_conflicts(authored_map, SA.shape)
     successes_by_rev = np.zeros(SA.shape[0])
     for group_id, group_revs in group_map.items():
@@ -43,7 +42,7 @@ def bid_success(SA, HB, MB, authored_map, authored_map_group, target_map, group_
             target_paps = [target_map[group_revs[0]]] # lone revs have a separate target
         for t in range(num_trials):
             S, B, M, idx_map = construct_similarity(SA, HB, MB, full_M, group_revs)
-            A = match(S, M, reviewer_load, paper_load)
+            A = match(S, M)
             for i in group_revs:
                 new_i = idx_map[i]
                 #successes_by_rev[i] += np.sum(A[new_i, target_paps])
@@ -173,7 +172,7 @@ def construct_similarity(SA, HB, MB, M, manipulators):
             B[new_i, :] = HB[old_i, :]
     newSA = SA[new_idxs, :]
     newM = M[new_idxs, :]
-    S = newSA + B # compute similarities in some way
+    S = similarity(newSA, B)
     return S, B, newM, idx_map
 
 
@@ -267,6 +266,7 @@ Outputs:
 '''
 def threshold(S, rank):
     U, s, Vh = scipy.linalg.svd(S, full_matrices=False)
+    #print('singular values:', s[:10])
     k = s.size
     if k < rank:
         return S
@@ -276,6 +276,7 @@ def threshold(S, rank):
 
 
 def main():
+    random.seed(0)
     data = np.load('../../parse/analysis/Biddings.npz')
     HB, MB, SA = data['HB'], data['MB'], data['SA']
     
@@ -295,13 +296,14 @@ def main():
         #author_map_group = pickle.load(f)
 
     # REVISION: additional parameter, author_map_group
-    success_by_reviewer = bid_success(SA, HB, MB, author_map, author_map_group, target_map, group_map, num_trials=10)
+    #success_by_reviewer = bid_success(SA, HB, MB, author_map, author_map_group, target_map, group_map, num_trials=10)
     rank_by_reviewer_simple = bid_detect(SA, HB, MB, author_map, group_map, num_trials=10, detection_type='simple', rank=None)
     rank_by_reviewer_cluster = bid_detect(SA, HB, MB, author_map, group_map, num_trials=10, detection_type='cluster', rank=None)
     rank_by_reviewer_row_rank = bid_detect(SA, HB, MB, author_map, group_map, num_trials=10, detection_type='low_rank', rank=3)
     #diff_by_reviewer_hamming = bid_difference(HB, MB, author_map, diff_fn='hamming')
     #diff_by_reviewer_L1 = bid_difference(HB, MB, author_map, diff_fn='L1')
 
+    exit()
     with open('../../parse/analysis/Result.npy', 'wb') as f:
         np.save(f, success_by_reviewer)
         np.save(f, rank_by_reviewer_simple)

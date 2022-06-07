@@ -65,7 +65,6 @@ def l1_to_l2(l1):
             if name.split(":")[0] == l1_subject_area_names[l1]
            }
 
-# TODO avoid duplication of function
 def make_SA_matrix(nrev, npap, reviewer_to_sas, sa_to_papers):
     SA = np.zeros((nrev, npap))
     for reviewer_id in range(len(reviewer_to_sas)):
@@ -80,6 +79,14 @@ def make_SA_matrix(nrev, npap, reviewer_to_sas, sa_to_papers):
                     SA[reviewer_id, paper_id] = 0.5
         # set matching L2 to 1 (overwriting)
         for sa_id in l2_sas:
-            for paper_id in sa_to_paper_ids[sa_id]:
+            if sa_id not in sa_to_papers:
+                continue
+            for paper_id in sa_to_papers[sa_id]:
                 SA[reviewer_id, paper_id] = 1
     return SA
+
+def similarity(SA, B):
+    #x = B == -1
+    #B[x] = -100
+    #return SA + B
+    return (1+SA) * np.power(2, B)
