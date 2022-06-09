@@ -1,5 +1,3 @@
-# Parse raw data into format for analysis
-
 import csv
 import random
 import string
@@ -7,6 +5,8 @@ import time
 import numpy as np
 import pickle
 from analysis.utils import *
+
+# Parse dataset CSVs into format for analysis
 
 nrev = 31
 npap = 28
@@ -17,14 +17,14 @@ strategy_descriptions = {}
 HB = np.zeros((nrev, npap)) # (reviewers, papers) with entries in {-1, 0, 1}
 MB = np.zeros((nrev, npap)) # (reviewers, papers) with entries in {-1, 0, 1}
 
-with open('raw/anonymize/anonymize_malicious_bidding.csv') as csvfile:
+with open('dataset/malicious_bidding.csv') as csvfile:
     csv_reader = csv.reader(csvfile)
     header = next(csv_reader)
     bid_start_idx = 1
-    assert(header[0] == 'RecipientEmail' and header[bid_start_idx] == 'Q3_1' and
+    assert(header[0] == 'ID' and header[bid_start_idx] == 'Q3_1' and
            header[bid_start_idx + npap - 1] == 'Q3_28')
     header = next(csv_reader)
-    assert header[0] == 'Recipient Email'
+    assert header[0] == 'ID'
     for paper_id, paper in enumerate(header[bid_start_idx:bid_start_idx+npap]):
         paper_name = paper[paper.find(': -') + 3:].strip()
         paper_to_id[paper_name] = paper_id
@@ -42,13 +42,13 @@ with open('raw/anonymize/anonymize_malicious_bidding.csv') as csvfile:
         reviewer_id += 1
     assert reviewer_id == nrev, reviewer_id
 
-with open('raw/anonymize/anonymize_honest_bidding.csv') as csvfile:
+with open('dataset/honest_bidding.csv') as csvfile:
     csv_reader = csv.reader(csvfile)
     header = next(csv_reader)
-    assert(header[0] == 'RecipientEmail' and header[bid_start_idx] == 'Q3_1' and
+    assert(header[0] == 'ID' and header[bid_start_idx] == 'Q3_1' and
            header[bid_start_idx + npap - 1] == 'Q3_28')
     header = next(csv_reader)
-    assert header[0] == 'Recipient Email'
+    assert header[0] == 'ID'
     for row in csv_reader:
         if row[0] not in email_to_id: # did not submit malicious bids
             continue
@@ -63,7 +63,7 @@ with open('raw/anonymize/anonymize_honest_bidding.csv') as csvfile:
 
 strategy_map = {}
 strategy_to_reviewers = {}
-with open('raw/anonymize/malicious_bidding_annotations.csv') as csvfile:
+with open('dataset/strategy_annotations.csv') as csvfile:
     csv_reader = csv.reader(csvfile)
     header = next(csv_reader)
     for row in csv_reader:
@@ -91,7 +91,7 @@ author_map = {} # dict of reviewer -> index of paper authored
 target_map = {} # dict of reviewer -> index of target paper (for reviewers with group size 1)
 author_map_group = {} # dict of reviewer -> indices of target papers (including other team members' authored papers)
 
-with open('raw/anonymize/anonymize_setup.csv') as csvfile:
+with open('dataset/setup.csv') as csvfile:
     r = csv.reader(csvfile)
     header = next(r)
     assert(all([x == y for x, y in 
