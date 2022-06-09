@@ -21,10 +21,10 @@ with open('dataset/malicious_bidding.csv') as csvfile:
     csv_reader = csv.reader(csvfile)
     header = next(csv_reader)
     bid_start_idx = 1
-    assert(header[0] == 'ID' and header[bid_start_idx] == 'Q3_1' and
+    assert(header[0] == 'Name' and header[bid_start_idx] == 'Q3_1' and
            header[bid_start_idx + npap - 1] == 'Q3_28')
     header = next(csv_reader)
-    assert header[0] == 'ID'
+    assert header[0] == 'Name'
     for paper_id, paper in enumerate(header[bid_start_idx:bid_start_idx+npap]):
         paper_name = paper[paper.find(': -') + 3:].strip()
         paper_to_id[paper_name] = paper_id
@@ -45,10 +45,10 @@ with open('dataset/malicious_bidding.csv') as csvfile:
 with open('dataset/honest_bidding.csv') as csvfile:
     csv_reader = csv.reader(csvfile)
     header = next(csv_reader)
-    assert(header[0] == 'ID' and header[bid_start_idx] == 'Q3_1' and
+    assert(header[0] == 'Name' and header[bid_start_idx] == 'Q3_1' and
            header[bid_start_idx + npap - 1] == 'Q3_28')
     header = next(csv_reader)
-    assert header[0] == 'ID'
+    assert header[0] == 'Name'
     for row in csv_reader:
         if row[0] not in email_to_id: # did not submit malicious bids
             continue
