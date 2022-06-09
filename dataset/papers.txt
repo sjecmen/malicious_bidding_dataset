@@ -1,0 +1,28 @@
+Making Machine Learning Fair
+Interpreting AI Decision-Making
+Transparent Machine-Learning Models
+Voting for Participatory Budgeting
+Voting with Delegation
+Improved Learning from Rankings
+Equilibrium Selection in Cooperative Games
+Communication for Teamwork in Games
+Multi-Agent Cooperative Board Games
+An Overview of Zero-Sum Games
+Solution Concepts in Many-Player Games
+Stackelberg Security Games for Coastal Defense
+A No-Regret Algorithm for Efficient Equilibrium Computation
+Consistency of Bayesian Inference
+Fitting Graphical Models
+A Novel Gaussian Process Approximation
+A*+DFS: A Hybrid Search Algorithm
+A* Search Under Uncertainty
+Search-Based Planning of Robot Trajectories
+Online Convex Optimization with Regularization
+Private Stochastic Convex Optimization
+A Hybrid Method for Non-Convex Optimization
+Memory and Computation-Efficient Kernel SVMs
+Forecasting Stock Prices with Deep Learning
+A Deep Learning Approach for Anomaly Detection
+New Algorithms for 3D Computer Vision
+Towards More Accurate NLP Models
+Optimal Error Bounds in Statistical Learning Theory

@@ -1,0 +1,25 @@
+Humans and AI: Fairness
+Humans and AI: Interpretability, accountability, and transparency in AI
+Social choice theory: Voting rules
+Social choice theory: Ranking models
+Social choice theory: Mechanism design
+Game theory: Cooperative games
+Game theory: Non-cooperative games
+Game theory: Stackelberg security games
+Game theory: No-regret learning
+Probabilistic modeling: Bayesian theory
+Probabilistic modeling: Graphical models
+Probabilistic modeling: Gaussian processes
+Probabilistic modeling: Topic models
+Search: A* algorithms and variants
+Search: Robotics applications of search
+Optimization: Integer programming
+Optimization: Linear programming
+Optimization: Convex optimization
+Optimization: Non-convex optimization
+Machine learning: Classical machine learning (SVM, kernel methods)
+Machine learning: Deep learning
+Machine learning: Computer vision
+Machine learning: Natural language processing
+Machine learning: Bias-complexity tradeoffs and double descent curves
+Machine learning: Learning theory
