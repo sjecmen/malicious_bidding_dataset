@@ -58,8 +58,11 @@ l1_subject_area_names = ["Humans and AI", "Social choice theory",
                          "Game theory", "Probabilistic modeling", 
                          "Search", "Optimization", "Machine learning"]
 
+# index of subject area to the high-level topic index
 def l2_to_l1(l2):
     return l1_subject_area_names.index(subject_area_names[l2].split(":")[0])
+
+# index of high-level topic to set of subject area indices
 def l1_to_l2(l1):
     return {i for i, name in enumerate(subject_area_names) 
             if name.split(":")[0] == l1_subject_area_names[l1]
@@ -70,14 +73,14 @@ def make_SA_matrix(nrev, npap, reviewer_to_sas, sa_to_papers):
     for reviewer_id in range(len(reviewer_to_sas)):
         l2_sas = reviewer_to_sas[reviewer_id]
         l1_sas = {l2_to_l1(x) for x in l2_sas}
-        # set matching L1 to 0.5
+        # set matching high-level topic to 0.5
         for l1_sa in l1_sas:
             for sa_id in l1_to_l2(l1_sa): # some SAs don't have papers
                 if sa_id not in sa_to_papers:
                     continue
                 for paper_id in sa_to_papers[sa_id]:
                     SA[reviewer_id, paper_id] = 0.5
-        # set matching L2 to 1 (overwriting)
+        # set matching subject areas to 1 (overwriting)
         for sa_id in l2_sas:
             if sa_id not in sa_to_papers:
                 continue
@@ -86,7 +89,4 @@ def make_SA_matrix(nrev, npap, reviewer_to_sas, sa_to_papers):
     return SA
 
 def similarity(SA, B):
-    #x = B == -1
-    #B[x] = -100
-    #return SA + B
     return (1+SA) * np.power(2, B)

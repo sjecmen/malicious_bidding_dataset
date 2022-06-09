@@ -178,7 +178,7 @@ if __name__ == '__main__':
     for key, value in data_load.items():
         data[key] = value
 
-    n = 5000
+    n = 5000 # number of reviewers and papers
     group_size = 4
     num_trials = 10
     success_by_strategy = [None] * 4

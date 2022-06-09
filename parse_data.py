@@ -14,8 +14,8 @@ npap = 28
 email_to_id = {}
 paper_to_id = {}
 strategy_descriptions = {}
-HB = np.zeros((nrev, npap)) # (reviewers, papers) with entries in {-1, 0, 1}
-MB = np.zeros((nrev, npap)) # (reviewers, papers) with entries in {-1, 0, 1}
+HB = np.zeros((nrev, npap)) # honest bidding matrix with entries in {-1, 0, 1}
+MB = np.zeros((nrev, npap)) # malicious bidding matrix with entries in {-1, 0, 1}
 
 with open('dataset/malicious_bidding.csv') as csvfile:
     csv_reader = csv.reader(csvfile)
@@ -28,7 +28,7 @@ with open('dataset/malicious_bidding.csv') as csvfile:
     for paper_id, paper in enumerate(header[bid_start_idx:bid_start_idx+npap]):
         paper_name = paper[paper.find(': -') + 3:].strip()
         paper_to_id[paper_name] = paper_id
-    reviewer_id = 0
+    reviewer_id = 0 # assign reviewer_ids only to the subset of malicious bids
     for row in csv_reader:
         email_to_id[row[0]] = reviewer_id
         strategy_descriptions[reviewer_id] = row[bid_start_idx + npap]
@@ -103,10 +103,13 @@ with open('dataset/setup.csv') as csvfile:
         else:
             reviewer_id = -1
         
+        # sas and sa_id are subject area indices
         sas = {int(x) for x in row[1].strip().split(' ')}
         sa_id = int(row[2]) 
-        paper_id = paper_to_id[paper_names[int(row[3])]] # paper_id is based on position in survey
+        # authored_id is a paper index into the list, but assigned paper_id based on survey position
+        paper_id = paper_to_id[paper_names[int(row[3])]]
         
+        # store which papers are in which subject areas
         paper_to_sa[paper_id] = sa_id
         if sa_id in sa_to_paper_ids:
             sa_to_paper_ids[sa_id].add(paper_id)
@@ -124,6 +127,7 @@ with open('dataset/setup.csv') as csvfile:
             else:
                 group_map[group] = [reviewer_id]
             reviewer_to_group[reviewer_id] = group
+            # if group size 1, read target paper subject area and paper indices
             if len(row[5]) > 0: 
                 target_id = paper_to_id[paper_names[int(row[5])]]
                 target_map[reviewer_id] = target_id
@@ -156,6 +160,3 @@ with open('analysis/data/maps.pkl', 'wb') as f:
         'strategy_to_reviewers' : strategy_to_reviewers,
         'strategy_descriptions' : strategy_descriptions
     }, f)
-#    pickle.dump(group_map, f)
-#    pickle.dump(target_map, f)
-#    pickle.dump(author_map_group, f)
