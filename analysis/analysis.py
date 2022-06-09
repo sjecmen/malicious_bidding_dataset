@@ -25,18 +25,16 @@ Inputs:
     SA, HB, MB, authored_map, target_map, group_map
     num_trials : number of trials to run for each manipulating group (due to randomness
         in the subsampling of honest reviewers)
-    << REVISION >> authored_map_group: list of papers authored by group members
+    authored_map_group: list of papers authored by group members
         including members who didn't participated the game
 Outputs:
     successes_by_rev : np vector of size (#reviewers)
-        denoting the average number of target papers that each reviewer got assigned to
+        denoting the number of target papers that each reviewer got assigned to
 '''
 def bid_success(SA, HB, MB, authored_map, authored_map_group, target_map, group_map, num_trials):
     full_M = construct_conflicts(authored_map, SA.shape)
     successes_by_rev = np.zeros(SA.shape[0])
     for group_id, group_revs in group_map.items():
-        #target_paps = [authored_map[r] for r in group_revs] # groups target their papers
-        # REVISION: count target papers authored by students who didn't participated the game
         target_paps = authored_map_group[group_revs[0]] # groups target their papers
         if len(group_revs) == 1 and group_revs[0] in target_map:
             target_paps = [target_map[group_revs[0]]] # lone revs have a separate target
@@ -45,16 +43,11 @@ def bid_success(SA, HB, MB, authored_map, authored_map_group, target_map, group_
             A = match(S, M)
             for i in group_revs:
                 new_i = idx_map[i]
-                #successes_by_rev[i] += np.sum(A[new_i, target_paps])
-                # REVISION: successes divided by numbers of target papers
-                #successes_by_rev[i] += np.sum(A[new_i, target_paps])/len(target_paps)
-                # REVISION: binary success rate
                 v = np.sum(A[new_i, target_paps])
                 if v >= 1:
                     successes_by_rev[i] += 1
                 else:
                     assert v == 0
-    successes_by_rev /= num_trials
     return successes_by_rev
 
 
@@ -69,13 +62,14 @@ Inputs:
     rank : integer denoting what rank the bid matrix should be thresholded to, only
         if detection_type == "low_rank"
 Outputs:
-    rank_by_rev : np vector of size (#reviewers)
-        denoting the average rank given to each reviewer by the detection algorithm
+    rank_by_rev : list of size (#reviewers)
+        denoting the list of ranks given to each reviewer by the detection algorithm
         (lower rank means more suspicious)
 '''
 def bid_detect(SA, HB, MB, authored_map, group_map, num_trials, detection_type, rank=None):
     full_M = construct_conflicts(authored_map, SA.shape)
-    rank_by_rev = np.zeros(SA.shape[0])
+    #rank_by_rev = np.zeros(SA.shape[0])
+    rank_by_rev = [[] for _ in range(SA.shape[0])]
     for group_id, group_revs in group_map.items():
         for t in range(num_trials):
             _, B, M, idx_map = construct_similarity(SA, HB, MB, full_M, group_revs)
@@ -92,8 +86,7 @@ def bid_detect(SA, HB, MB, authored_map, group_map, num_trials, detection_type, 
             for i in group_revs:
                 new_i = idx_map[i]
                 position = detection_ranks[new_i]
-                rank_by_rev[i] += position
-    rank_by_rev /= num_trials
+                rank_by_rev[i].append(position)
     return rank_by_rev
 
 '''
@@ -222,7 +215,7 @@ def cluster_detect(B, M, authored_map):
             i_out = bidsums[i] - B[i, pj] # all bids other than pj
             j_out = bidsums[j] - B[j, pi]
             # sort revs first by in-group bids, then by out-group
-            score = max(B[i, pj], 0) + max(B[j, pi], 0) - ((i_out + j_out) / (2 * npap)) # change: max with 0
+            score = max(B[i, pj], 0) + max(B[j, pi], 0) - ((i_out + j_out) / (2 * npap))
             scores[i, j] = score
             scores[j, i] = score
     rev_scores = list(np.amax(scores, axis=1))
@@ -277,40 +270,23 @@ def threshold(S, rank):
 
 def main():
     random.seed(0)
-    data = np.load('../../parse/analysis/Biddings.npz')
+    data = np.load('data/Biddings.npz')
     HB, MB, SA = data['HB'], data['MB'], data['SA']
     
-    #with open('../../parse/Biddings.npy', 'rb') as f:
-    #    HB = np.load(f)
-    #    MB = np.load(f)
-    #    SA = np.load(f)
-
-    with open('../../parse/analysis/maps.pkl', 'rb') as f:
+    with open('data/maps.pkl', 'rb') as f:
         data = pickle.load(f)
         author_map, group_map, target_map, author_map_group = (
             data['author_map'], data['group_map'], data['target_map'], data['author_map_group'])
-        #author_map = pickle.load(f)
-        #group_map = pickle.load(f)
-        #target_map = pickle.load(f)
-        # REVISION
-        #author_map_group = pickle.load(f)
 
-    # REVISION: additional parameter, author_map_group
-    #success_by_reviewer = bid_success(SA, HB, MB, author_map, author_map_group, target_map, group_map, num_trials=10)
-    rank_by_reviewer_simple = bid_detect(SA, HB, MB, author_map, group_map, num_trials=10, detection_type='simple', rank=None)
-    rank_by_reviewer_cluster = bid_detect(SA, HB, MB, author_map, group_map, num_trials=10, detection_type='cluster', rank=None)
-    rank_by_reviewer_row_rank = bid_detect(SA, HB, MB, author_map, group_map, num_trials=10, detection_type='low_rank', rank=3)
-    #diff_by_reviewer_hamming = bid_difference(HB, MB, author_map, diff_fn='hamming')
-    #diff_by_reviewer_L1 = bid_difference(HB, MB, author_map, diff_fn='L1')
+    num_trials = 10
+    success_by_reviewer = bid_success(SA, HB, MB, author_map, author_map_group, target_map, group_map, num_trials=num_trials)
+    rank_by_reviewer_simple = bid_detect(SA, HB, MB, author_map, group_map, num_trials=num_trials, detection_type='simple', rank=None)
+    rank_by_reviewer_cluster = bid_detect(SA, HB, MB, author_map, group_map, num_trials=num_trials, detection_type='cluster', rank=None)
+    rank_by_reviewer_low_rank = bid_detect(SA, HB, MB, author_map, group_map, num_trials=num_trials, detection_type='low_rank', rank=3)
 
-    exit()
-    with open('../../parse/analysis/Result.npy', 'wb') as f:
-        np.save(f, success_by_reviewer)
-        np.save(f, rank_by_reviewer_simple)
-        np.save(f, rank_by_reviewer_cluster)
-        np.save(f, rank_by_reviewer_row_rank)
-        #np.save(f, diff_by_reviewer_hamming)
-        #np.save(f, diff_by_reviewer_L1)
+    np.savez('data/Result.npz', success_by_reviewer=success_by_reviewer, rank_by_reviewer_simple=rank_by_reviewer_simple,
+            rank_by_reviewer_cluster=rank_by_reviewer_cluster, rank_by_reviewer_low_rank=rank_by_reviewer_low_rank, 
+            num_trials=num_trials)
 
 if __name__ == "__main__":
     main()

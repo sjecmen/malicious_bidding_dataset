@@ -13,6 +13,7 @@ npap = 28
 
 email_to_id = {}
 paper_to_id = {}
+strategy_descriptions = {}
 HB = np.zeros((nrev, npap)) # (reviewers, papers) with entries in {-1, 0, 1}
 MB = np.zeros((nrev, npap)) # (reviewers, papers) with entries in {-1, 0, 1}
 
@@ -30,6 +31,7 @@ with open('raw/anonymize/anonymize_malicious_bidding.csv') as csvfile:
     reviewer_id = 0
     for row in csv_reader:
         email_to_id[row[0]] = reviewer_id
+        strategy_descriptions[reviewer_id] = row[bid_start_idx + npap]
         for paper_id in range(npap):
             if row[bid_start_idx + paper_id] == 'Not willing to review':
                 MB[reviewer_id, paper_id] = -1
@@ -68,12 +70,8 @@ with open('raw/anonymize/malicious_bidding_annotations.csv') as csvfile:
         if row[0] not in email_to_id: # did not submit malicious bids
             continue
         reviewer_id = email_to_id[row[0]]
-        strat = row[1]
-        if strat == '?':
-            strat = -1
-        else:
-            strat = int(strat) - 1
-        assert strat < 6
+        strat = int(row[1])
+        assert strat < 5
         strategy_map[reviewer_id] = strat
         if strat not in strategy_to_reviewers:
             strategy_to_reviewers[strat] = [reviewer_id]
@@ -155,7 +153,8 @@ with open('analysis/data/maps.pkl', 'wb') as f:
         'reviewer_to_sas' : reviewer_to_sas,
         'paper_to_sas' : paper_to_sa,
         'reviewer_to_strategy' : strategy_map,
-        'strategy_to_reviewers' : strategy_to_reviewers
+        'strategy_to_reviewers' : strategy_to_reviewers,
+        'strategy_descriptions' : strategy_descriptions
     }, f)
 #    pickle.dump(group_map, f)
 #    pickle.dump(target_map, f)

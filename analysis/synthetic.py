@@ -4,12 +4,6 @@ from analysis import simple_detect, cluster_detect, low_rank_detect
 import pickle
 from LP import match
 
-# Define functions that bid for each reviewer type
-# Each reviewer type applies to the whole group
-# how to find X and Y? look at distribution and sample, and add noise(?)
-
-# don't scale up number of positive bids for anyone, since these are relevant to load
-# scale up negative bids since these aren't
 rng = None
 
 def copy_bid_distribution(B_row, SA_old_row, SA_row, targets=[]):
@@ -27,7 +21,7 @@ def copy_bid_distribution(B_row, SA_old_row, SA_row, targets=[]):
     papers_sim_old = [x[0] for x in np.argwhere(SA_old_row > 0)]
     papers_non_old = [x[0] for x in np.argwhere(SA_old_row == 0)]
 
-    # npos0/nneg0 does not count any bids on targets because B_row has 0d them
+    # npos0/nneg0 does not count any bids on targets because B_row has zerod them
     pos = B_row == 1
     neg = B_row == -1
     npos0 = [np.sum(pos[papers_sim_old]), np.sum(pos[papers_non_old])]
@@ -57,16 +51,6 @@ def construct_SA_new(nrev1, npap1, group_size, reviewer_to_sas, reviewer_to_auth
     model_group = rng.choice(groups_of_size)
     models = rng.choice(list(reviewer_to_sas.keys()), nrev1 - group_size)
 
-    '''
-    for pid in range(npap1):
-        sa = rng.choice(paper_to_sas.values())
-        new_paper_to_sas[pid] = sa
-        if sa not in new_sa_to_papers:
-            new_sa_to_papers[sa] = {pid}
-        else:
-            new_sa_to_papers[sa].add(pid)
-    '''
-    #new_paper_to_sas = {}
     new_sa_to_papers = {}
     new_reviewer_to_sas = {}
     for rid, model in enumerate(list(model_group) + list(models)):
@@ -82,74 +66,40 @@ def construct_SA_new(nrev1, npap1, group_size, reviewer_to_sas, reviewer_to_auth
     return SA, M, list(range(group_size)), list(range(group_size))
 
 def construct_honest_bid_matrix(B_old_honest, SA_old, SA_new):
-    # simplified version
-    '''
-    B_new = np.zeros_like(SA_new)
-    B_new[SA_new == 1] = 1
-    return B_new
-    '''
-    # unsimplified
     nrev0, npap0 = B_old_honest.shape
     nrev1, npap1 = SA_new.shape
     B_new = copy_bids(nrev1, B_old_honest, SA_old, SA_new, list(range(nrev0)))
     return B_new
 
-# eager to mixed set of target and non-group papers
-# SA_new is truncated to len targets
 def bid_malicious__basic(B_old_malicious, SA_old, SA_new, strategy_map, targets):
     assert len(targets) == SA_new.shape[0]
-
-    # simplified
-    '''
-    B_new = np.zeros_like(SA_new)
-    B_new[:] = -1
-    B_new[:, targets] = 1
-    return B_new
-    '''
-    # unsimplified
     B_new = copy_bids(len(targets), B_old_malicious, SA_old, SA_new, strategy_map[0], targets)
     B_new[:, targets] = 1
     return B_new
 
-# eager/indifferent to shared set of non-group to push them to be full
-#   copt 4x distribution, but make all + the same
-def bid_malicious__eager_to_same(B_old_malicious, SA_old, SA_new, strategy_map, targets):
+def bid_malicious__notwilling_to_similar(B_old_malicious, SA_old, SA_new, strategy_map, targets):
     B_new = copy_bids(len(targets), B_old_malicious, SA_old, SA_new, strategy_map[1], targets)
+    B_new[:, targets] = 1
+    return B_new
+
+def bid_malicious__eager_to_same(B_old_malicious, SA_old, SA_new, strategy_map, targets):
+    B_new = copy_bids(len(targets), B_old_malicious, SA_old, SA_new, strategy_map[2], targets)
     B_new[:, targets] = 1
     positive_bids = B_new[0, :] == 1 
     B_new[B_new == 1] = 0
     B_new[:, positive_bids] = 1
     return B_new
 
-# indifferent to similar non-group
-def bid_malicious__indifferent_to_similar(B_old_malicious, SA_old, SA_new, strategy_map, targets):
-    B_new = copy_bids(len(targets), B_old_malicious, SA_old, SA_new, strategy_map[2], targets)
-    B_new[:, targets] = 1
-    return B_new
-
-# notwilling to similar non-group
-def bid_malicious__notwilling_to_similar(B_old_malicious, SA_old, SA_new, strategy_map, targets):
-    B_new = copy_bids(len(targets), B_old_malicious, SA_old, SA_new, strategy_map[3], targets)
-    B_new[:, targets] = 1
-    return B_new
-
-# + on 1 target, 0 on others
 def bid_malicious__eager_cycle(B_old_malicious, SA_old, SA_new, strategy_map, targets):
     assert len(targets) > 1
-    B_new = copy_bids(len(targets), B_old_malicious, SA_old, SA_new, strategy_map[4], targets)
+    B_new = copy_bids(len(targets), B_old_malicious, SA_old, SA_new, strategy_map[3], targets)
     for rid, target in enumerate(targets):
         i = rid + 1 if rid + 1 < len(targets) else 0
         B_new[i, target] = 1
     return B_new
 
-# (maybe) don't implement: uncommon, and can't recreate how they judge which papers are popular --> just be optimistic about it
-# copy 4x dist, but +/- goes only on unpop
-# popularity: rank by number of eager bids made by other reviewers
-# implement later
-def bid_malicious__indifferent_to_popular(B_old_malicious, SA_old, SA_new, strategy_map, targets):
-    pass
 
-# 'main' function for synthetic part
+# TODO refactor to pass around data map instead
 def prepare_experiment(nrev1, npap1, strategy, group_size, data):
     # load data here
     B_old_honest, B_old_malicious, SA_old = data['HB'], data['MB'], data['SA']
@@ -167,12 +117,14 @@ def prepare_experiment(nrev1, npap1, strategy, group_size, data):
     for rid, pids in author_map_group.items():
         for pid in pids:
             B_old_malicious[rid, pid] = 0
-    # TODO refactor to pass around data map instead
+    target_map = data['target_map'] # lone reviewer targets
+    for rid, pid in target_map.items():
+        B_old_malicious[rid, pid] = 0
 
     # pass into other fns
     SA_new, M_new, malicious, targets = construct_SA_new(nrev1, npap1, group_size, reviewer_to_sas, authored_sa_map, group_map)
     B_new = construct_honest_bid_matrix(B_old_honest, SA_old, SA_new)
-    fns = [bid_malicious__basic, bid_malicious__eager_to_same, bid_malicious__indifferent_to_similar, bid_malicious__notwilling_to_similar, bid_malicious__eager_cycle]
+    fns = [bid_malicious__basic, bid_malicious__notwilling_to_similar, bid_malicious__eager_to_same, bid_malicious__eager_cycle]
     SA_new_malicious = SA_new[malicious, :]
     B_new_malicious = fns[strategy](B_old_malicious, SA_old, SA_new_malicious, strategy_map, targets)
     for i, rid in enumerate(malicious):
@@ -181,27 +133,26 @@ def prepare_experiment(nrev1, npap1, strategy, group_size, data):
     return S, B_new, M_new, malicious, targets
 
 
-# TODO some duplication from analysis
 def synth_bid_success(nrev, npap, strategy, group_size, data, num_trials):
-    success_rate = 0
+    successes = []
     for t in range(num_trials):
+        print('success trial', t)
         S, B, M, malicious, targets = prepare_experiment(nrev, npap, strategy, group_size, data)
         A = match(S, M)
+        success_rate = 0
         for i in malicious:
-            #print(np.sum(B[i, :]), np.sum(B[i, targets]))
-            #print(np.sum(S[i, :]), np.sum(S[i, targets]))
             v = np.sum(A[i, targets])
-            #print(v)
             if v >= 1:
                 success_rate += 1
             else:
                 assert v == 0
-    success_rate /= num_trials * group_size
-    return success_rate
+        successes.append(success_rate)
+    return successes 
 
 def synth_bid_detect(nrev, npap, strategy, group_size, data, num_trials, detection_type, rank=None):
-    reviewer_rank = 0
+    reviewer_ranks = []
     for t in range(num_trials):
+        print('detect trial', t)
         S, B, M, malicious, targets = prepare_experiment(nrev, npap, strategy, group_size, data)
         if detection_type == 'simple':
             detection_ranks = simple_detect(B, M)
@@ -215,36 +166,32 @@ def synth_bid_detect(nrev, npap, strategy, group_size, data, num_trials, detecti
         else:
             assert(False)
 
-        for i in malicious:
-            reviewer_rank += detection_ranks[i]
-    reviewer_rank /= num_trials * group_size
-    return reviewer_rank 
+        these_ranks = [detection_ranks[i] for i in malicious]
+        reviewer_ranks.append(these_ranks)
+    return reviewer_ranks
 
 if __name__ == '__main__':
     rng = np.random.default_rng(0)
-    with open('../../parse/analysis/maps.pkl', 'rb') as f:
+    with open('data/maps.pkl', 'rb') as f:
         data = pickle.load(f)
-    data_load = np.load('../../parse/analysis/Biddings.npz')
+    data_load = np.load('data/Biddings.npz')
     for key, value in data_load.items():
         data[key] = value
 
-    n = 300
+    n = 5000
     group_size = 4
     num_trials = 10
-    success_by_strategy = np.zeros(6)
-    rank_by_strategy_simple = np.zeros(6)
-    rank_by_strategy_low_rank = np.zeros(6)
-    rank_by_strategy_cluster = np.zeros(6)
-    for strategy in range(5): # s5 not implemented
-        rank_by_strategy_cluster[strategy] = synth_bid_detect(n, n, strategy, group_size, data, num_trials, 'cluster', rank=None)
+    success_by_strategy = [None] * 4
+    rank_by_strategy_simple = [None] * 4
+    rank_by_strategy_low_rank = [None] * 4
+    rank_by_strategy_cluster = [None] * 4
+    for strategy in range(4): # s4 not implemented
+        print('strategy', strategy)
         success_by_strategy[strategy] = synth_bid_success(n, n, strategy, group_size, data, num_trials)
         rank_by_strategy_simple[strategy] = synth_bid_detect(n, n, strategy, group_size, data, num_trials, 'simple', rank=None)
+        rank_by_strategy_cluster[strategy] = synth_bid_detect(n, n, strategy, group_size, data, num_trials, 'cluster', rank=None)
         rank_by_strategy_low_rank[strategy] = synth_bid_detect(n, n, strategy, group_size, data, num_trials, 'low_rank', rank=3)
-    print(success_by_strategy)
-    print(rank_by_strategy_simple)
-    print(rank_by_strategy_cluster)
-    print(rank_by_strategy_low_rank)
 
-    np.savez('../../parse/analysis/Result_synth.npz', success_by_strategy=success_by_strategy, rank_by_strategy_simple=rank_by_strategy_simple,
+    np.savez('data/Result_synth.npz', success_by_strategy=success_by_strategy, rank_by_strategy_simple=rank_by_strategy_simple,
             rank_by_strategy_cluster=rank_by_strategy_cluster, rank_by_strategy_low_rank=rank_by_strategy_low_rank, 
             n=n, group_size=group_size, num_trials=num_trials)
