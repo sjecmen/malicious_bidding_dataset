@@ -1,4 +1,4 @@
-This repository contains a dataset on malicious bidding and associated analysis code. Please see the paper "A Dataset on Malicious Paper Bidding in Peer Review" for details on the dataset. This dataset is licensed under a CC BY 4.0 license (https://creativecommons.org/licenses/by/4.0/).
+This repository contains a dataset on malicious bidding and associated analysis code. Please see the associated paper for details on the dataset: https://arxiv.org/abs/2207.02303. This dataset is licensed under a CC BY 4.0 license (https://creativecommons.org/licenses/by/4.0/).
 
 The dataset is contained in the dataset/ folder, and consists of 2 txt files and 4 csv files:
 - subject_areas.txt contains the 25 subject areas used.
