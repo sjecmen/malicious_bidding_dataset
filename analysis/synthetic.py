@@ -135,9 +135,11 @@ def prepare_experiment(nrev1, npap1, strategy, group_size, data):
     return S, B_new, M_new, malicious, targets
 
 
-def synth_bid_success(nrev, npap, strategy, group_size, data, num_trials):
+def synth_bid_success(nrev, npap, strategy, group_size, data, num_trials, verbose=False):
     successes = []
     for t in range(num_trials):
+        if verbose:
+            print(f'\t trial {t}')
         S, B, M, malicious, targets = prepare_experiment(nrev, npap, strategy, group_size, data)
         A = fast_match(S, M)
         success_rate = 0
@@ -150,7 +152,7 @@ def synth_bid_success(nrev, npap, strategy, group_size, data, num_trials):
         successes.append(success_rate)
     return successes 
 
-def synth_bid_detect(nrev, npap, strategy, group_size, data, num_trials, detection_type, rank=None):
+def synth_bid_detect(nrev, npap, strategy, group_size, data, num_trials, detection_type, rank=None, verbose=False):
     reviewer_ranks = []
     for t in range(num_trials):
         S, B, M, malicious, targets = prepare_experiment(nrev, npap, strategy, group_size, data)
@@ -170,15 +172,23 @@ def synth_bid_detect(nrev, npap, strategy, group_size, data, num_trials, detecti
         reviewer_ranks.append(these_ranks)
     return reviewer_ranks
 
-def run_exp(n, strategy, group_size, data, num_trials):
+def run_exp(n, strategy, group_size, data, num_trials, verbose=False):
     if group_size == 1 and strategy == 3: # no cycle strategy with group_size 1
         return
     print(f'n={n}, group_size={group_size}, strategy={strategy}')
     results = {}
-    results['success'] = synth_bid_success(n, n, strategy, group_size, data, num_trials)
-    results['rank_simple'] = synth_bid_detect(n, n, strategy, group_size, data, num_trials, 'simple', rank=None)
-    results['rank_cluster'] = synth_bid_detect(n, n, strategy, group_size, data, num_trials, 'cluster', rank=None)
-    results['rank_lowrank'] = synth_bid_detect(n, n, strategy, group_size, data, num_trials, 'low_rank', rank=3)
+    if verbose:
+        print('1 : success')
+    results['success'] = synth_bid_success(n, n, strategy, group_size, data, num_trials, verbose=verbose)
+    if verbose:
+        print('2 : simple')
+    results['rank_simple'] = synth_bid_detect(n, n, strategy, group_size, data, num_trials, 'simple', rank=None, verbose=verbose)
+    if verbose:
+        print('3 : cluster')
+    results['rank_cluster'] = synth_bid_detect(n, n, strategy, group_size, data, num_trials, 'cluster', rank=None, verbose=verbose)
+    if verbose:
+        print('4 : lowrank')
+    results['rank_lowrank'] = synth_bid_detect(n, n, strategy, group_size, data, num_trials, 'low_rank', rank=3, verbose=verbose)
     with open(f'data/synth_results/n_{n}__groupsize_{group_size}__strategy_{strategy}.pkl', 'wb') as f:
         pickle.dump(results, f)
 
@@ -189,8 +199,8 @@ def run_all(data, param_list, num_trials, n_jobs):
             delayed(run_exp)(n, strategy, group_size, data, num_trials) for (n, strategy, group_size) in param_list 
                )
     else:
-        for n, group_size, strategy in param_list:
-            run_exp(n, strategy, group_size, data, num_trials) 
+        for (n, strategy, group_size) in param_list:
+            run_exp(n, strategy, group_size, data, num_trials, verbose=True)
     return
 
 if __name__ == '__main__':
@@ -201,21 +211,11 @@ if __name__ == '__main__':
     for key, value in data_load.items():
         data[key] = value
 
+    ns = [100, 500, 1000, 5000]
+    strats = [0, 1, 2, 3] # s4 not implemented
+    group_sizes = [1, 2, 3, 4]
+    param_list = itertools.product(ns, strats, group_sizes) 
     num_trials = 100
-    param_list = itertools.product([100, 500, 1000, 5000], range(4), range(1, 5)) # s4 not implemented
-    n_jobs = 4
+    n_jobs = 1
     run_all(data, param_list, num_trials, n_jobs)
 
-    '''
-    results = {'success' : {}, 'rank_simple' : {}, 'rank_lowrank' : {}, 'rank_cluster' : {} }
-    for n, strategy, group_size in itertools.product([100, 500, 1000, 5000], range(4), range(1, 5)): # s4 not implemented
-        if group_size == 1 and strategy == 3: # no cycle strategy with group_size 1
-            continue 
-        print(f'n={n}, group_size={group_size}, strategy={strategy}')
-        results['success'][(n, group_size, strategy)] = synth_bid_success(n, n, strategy, group_size, data, num_trials)
-        results['rank_simple'][(n, group_size, strategy)] = synth_bid_detect(n, n, strategy, group_size, data, num_trials, 'simple', rank=None)
-        results['rank_cluster'][(n, group_size, strategy)] = synth_bid_detect(n, n, strategy, group_size, data, num_trials, 'cluster', rank=None)
-        results['rank_lowrank'][(n, group_size, strategy)] = synth_bid_detect(n, n, strategy, group_size, data, num_trials, 'low_rank', rank=3)
-        with open('data/Results_synth.pkl', 'wb') as f:
-            pickle.dump(results, f)
-    '''
