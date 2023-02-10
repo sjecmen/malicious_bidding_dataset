@@ -2,6 +2,7 @@ import numpy as np
 import pickle
 import itertools
 from joblib import Parallel, delayed
+import time
 
 from LP import fast_match
 from utils import make_SA_matrix, similarity
@@ -50,9 +51,17 @@ def copy_bids(nrev, B_old, SA_old, SA_new, models, targets=[]):
 
 def construct_SA_new(nrev1, npap1, group_size, reviewer_to_sas, reviewer_to_authored_sa, group_map):
     assert nrev1 == npap1 # for now
+
     groups_of_size = [x for _, x in group_map.items() if len(x) == group_size]
     model_group = rng.choice(groups_of_size)
-    models = rng.choice(list(reviewer_to_sas.keys()), nrev1 - group_size)
+    if group_size > 1:
+        models = rng.choice(list(reviewer_to_sas.keys()), nrev1 - group_size)
+        target_idx = list(range(group_size))
+    elif group_size == 1:
+        target_models = [rid for rid, sa in reviewer_to_authored_sa.items() if sa in reviewer_to_sas[model_group[0]]]
+        target_model = rng.choice(target_models)
+        models = [target_model] + list(rng.choice(list(reviewer_to_sas.keys()), nrev1 - 2))
+        target_idx = [1]
 
     new_sa_to_papers = {}
     new_reviewer_to_sas = {}
@@ -66,7 +75,7 @@ def construct_SA_new(nrev1, npap1, group_size, reviewer_to_sas, reviewer_to_auth
     M = np.eye(nrev1)
    
     SA = make_SA_matrix(nrev1, npap1, new_reviewer_to_sas, new_sa_to_papers)
-    return SA, M, list(range(group_size)), list(range(group_size))
+    return SA, M, list(range(group_size)), target_idx
 
 def construct_honest_bid_matrix(B_old_honest, SA_old, SA_new):
     nrev0, npap0 = B_old_honest.shape
@@ -179,16 +188,25 @@ def run_exp(n, strategy, group_size, data, num_trials, verbose=False):
     results = {}
     if verbose:
         print('1 : success')
+        stime = time.time()
     results['success'] = synth_bid_success(n, n, strategy, group_size, data, num_trials, verbose=verbose)
     if verbose:
+        print(f'time={time.time() - stime}')
         print('2 : simple')
+        stime = time.time()
     results['rank_simple'] = synth_bid_detect(n, n, strategy, group_size, data, num_trials, 'simple', rank=None, verbose=verbose)
     if verbose:
+        print(f'time={time.time() - stime}')
         print('3 : cluster')
+        stime = time.time()
     results['rank_cluster'] = synth_bid_detect(n, n, strategy, group_size, data, num_trials, 'cluster', rank=None, verbose=verbose)
     if verbose:
+        print(f'time={time.time() - stime}')
         print('4 : lowrank')
+        stime = time.time()
     results['rank_lowrank'] = synth_bid_detect(n, n, strategy, group_size, data, num_trials, 'low_rank', rank=3, verbose=verbose)
+    if verbose:
+        print(f'time={time.time() - stime}')
     with open(f'data/synth_results/n_{n}__groupsize_{group_size}__strategy_{strategy}.pkl', 'wb') as f:
         pickle.dump(results, f)
 
@@ -213,8 +231,8 @@ if __name__ == '__main__':
 
     ns = [100, 500, 1000, 5000]
     strats = [0, 1, 2, 3] # s4 not implemented
-    group_sizes = [1, 2, 3, 4]
-    param_list = itertools.product(ns, strats, group_sizes) 
+    group_sizes = [2, 3, 4]
+    param_list = list(itertools.product(ns, strats, group_sizes))
     num_trials = 100
     n_jobs = 1
     run_all(data, param_list, num_trials, n_jobs)
