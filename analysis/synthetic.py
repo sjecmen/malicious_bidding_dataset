@@ -2,6 +2,7 @@ import numpy as np
 import pickle
 import itertools
 from joblib import Parallel, delayed
+import time
 
 from LP import fast_match
 from utils import make_SA_matrix, similarity
@@ -179,16 +180,25 @@ def run_exp(n, strategy, group_size, data, num_trials, verbose=False):
     results = {}
     if verbose:
         print('1 : success')
+        stime = time.time()
     results['success'] = synth_bid_success(n, n, strategy, group_size, data, num_trials, verbose=verbose)
     if verbose:
+        print(f'time={time.time() - stime}')
         print('2 : simple')
+        stime = time.time()
     results['rank_simple'] = synth_bid_detect(n, n, strategy, group_size, data, num_trials, 'simple', rank=None, verbose=verbose)
     if verbose:
+        print(f'time={time.time() - stime}')
         print('3 : cluster')
+        stime = time.time()
     results['rank_cluster'] = synth_bid_detect(n, n, strategy, group_size, data, num_trials, 'cluster', rank=None, verbose=verbose)
     if verbose:
+        print(f'time={time.time() - stime}')
         print('4 : lowrank')
+        stime = time.time()
     results['rank_lowrank'] = synth_bid_detect(n, n, strategy, group_size, data, num_trials, 'low_rank', rank=3, verbose=verbose)
+    if verbose:
+        print(f'time={time.time() - stime}')
     with open(f'data/synth_results/n_{n}__groupsize_{group_size}__strategy_{strategy}.pkl', 'wb') as f:
         pickle.dump(results, f)
 
@@ -213,7 +223,7 @@ if __name__ == '__main__':
 
     ns = [100, 500, 1000, 5000]
     strats = [0, 1, 2, 3] # s4 not implemented
-    group_sizes = [1, 2, 3, 4]
+    group_sizes = [2, 3, 4]
     param_list = itertools.product(ns, strats, group_sizes) 
     num_trials = 100
     n_jobs = 1

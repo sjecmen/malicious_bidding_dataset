@@ -1,5 +1,5 @@
 import numpy as np
-from LP import match
+from LP import fast_match
 import random
 import scipy.linalg
 import pickle
@@ -40,7 +40,7 @@ def bid_success(SA, HB, MB, authored_map, authored_map_group, target_map, group_
             target_paps = [target_map[group_revs[0]]] # lone revs have a separate target
         for t in range(num_trials):
             S, B, M, idx_map = construct_similarity(SA, HB, MB, full_M, group_revs)
-            A = match(S, M)
+            A = fast_match(S, M)
             for i in group_revs:
                 new_i = idx_map[i]
                 v = np.sum(A[new_i, target_paps])
@@ -259,7 +259,6 @@ Outputs:
 '''
 def threshold(S, rank):
     U, s, Vh = scipy.linalg.svd(S, full_matrices=False)
-    #print('singular values:', s[:10])
     k = s.size
     if k < rank:
         return S
@@ -278,15 +277,17 @@ def main():
         author_map, group_map, target_map, author_map_group = (
             data['author_map'], data['group_map'], data['target_map'], data['author_map_group'])
 
-    num_trials = 10
+    num_trials = 100
     success_by_reviewer = bid_success(SA, HB, MB, author_map, author_map_group, target_map, group_map, num_trials=num_trials)
     rank_by_reviewer_simple = bid_detect(SA, HB, MB, author_map, group_map, num_trials=num_trials, detection_type='simple', rank=None)
     rank_by_reviewer_cluster = bid_detect(SA, HB, MB, author_map, group_map, num_trials=num_trials, detection_type='cluster', rank=None)
     rank_by_reviewer_low_rank = bid_detect(SA, HB, MB, author_map, group_map, num_trials=num_trials, detection_type='low_rank', rank=3)
 
-    np.savez('data/Result.npz', success_by_reviewer=success_by_reviewer, rank_by_reviewer_simple=rank_by_reviewer_simple,
-            rank_by_reviewer_cluster=rank_by_reviewer_cluster, rank_by_reviewer_low_rank=rank_by_reviewer_low_rank, 
-            num_trials=num_trials)
+    with open('data/results.pkl', 'wb') as f:
+        pickle.dump({'success_by_reviewer' : success_by_reviewer,
+            'rank_by_reviewer_simple' : rank_by_reviewer_simple,
+            'rank_by_reviewer_cluster' : rank_by_reviewer_cluster,
+            'rank_by_reviewer_lowrank' : rank_by_reviewer_low_rank}, f)
 
 if __name__ == "__main__":
     main()
